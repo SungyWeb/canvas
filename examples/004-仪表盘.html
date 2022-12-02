@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #canvas {
+      display: block;
+      outline: 1px solid tan;
+      margin: 50px auto 0;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="canvas" width="600" height="300" ></canvas>
+  <script type="module" >
+    import {drawGrid} from './common.js'
+    let direct = true
+    const canvas = document.getElementById('canvas')
+    /**
+     * @type {CanvasRenderingContext2D}
+     */
+    const ctx = canvas.getContext('2d')
+
+    let centerRadius = 10,
+      centerStrokeStyle = 'rgba(0,0,0,0.5)',
+      centerFillStyle = 'rgba(80, 190, 240, 0.6)',
+
+      ringInnerRadius = 100,
+      ringOuterRadius = 105,
+
+      annotationsFillStyle = 'rgba(0,0,230,0.9)',
+      annotationsTextSize = 12,
+
+      tickWidth = 10,
+      tickLongStrokeStyle = 'rgba(100, 140, 230, 0.9)',
+      tickShortStrokeStyle = 'rgba(100, 140, 230, 0.7)',
+
+      trackingDialStrokingStyle = 'rgba(100, 140, 230, 0.5)',
+
+      guidewireStrokeStyle = 'goldenrod',
+      guidewireFillStyle = 'rgba(250, 250, 0, 0.5)',
+
+      circle = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 10
+      };
+
+    drawGrid(ctx, 'lightgray', 10, 10)
+
+    ctx.shadowColor = 'rgba(0,0,0,0.4)'
+    ctx.shadowBlur = 4
+    ctx.shadowOffsetX = 2
+    ctx.shadowOffsetY = 2
+
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    let prevDeg = 0
+    let degStep = 0
+    let runningDeg = 0
+    let targetDeg = 0
+    // 基础表盘
+    drawDial()
+    // 指针
+    window._update = update
+    setTimeout(() => {
+      update(100)
+    }, 1000);
+
+    function update(deg) {
+      if(deg === prevDeg) {
+        return console.log('数值相等')
+      }
+      targetDeg = deg
+      degStep = (deg - prevDeg) / 30
+      runningDeg = prevDeg
+      animate()
+    }
+
+    function animate() {
+      // 此处判断可用简化
+      // 为了逻辑清晰 暂时不做
+      if(targetDeg > prevDeg) {
+        if(runningDeg <= targetDeg) {
+          runningDeg += degStep
+
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
+          drawDial()
+          drawGuideByDeg(runningDeg)
+          requestAnimationFrame(animate)
+        }else {
+          // 动画结束
+          prevDeg = targetDeg
+        }
+      }else {
+        if(runningDeg >= targetDeg) {
+          runningDeg += degStep
+
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
+          drawDial()
+          drawGuideByDeg(runningDeg)
+          requestAnimationFrame(animate)
+        }else {
+          // 动画结束
+          prevDeg = targetDeg
+        }
+      }
+
+    }
+    function drawGuideByDeg(deg) {
+      const angle = -Math.PI / 180 * deg
+
+      drawCentroidGuidewire(angle)
+    }
+    function drawDial() {
+      drawCentroid()
+      drawRingOuterCircle()
+      drawTickInnerCircle()
+      drawTicks()
+      drawAnnotations()
+    }
+
+    function drawCentroid() {
+      ctx.save()
+      ctx.beginPath()
+      ctx.strokeStyle = centerStrokeStyle
+      ctx.fillStyle = centerFillStyle
+      ctx.arc(circle.x, circle.y, centerRadius, 0, Math.PI * 2, false)
+      ctx. stroke()
+      ctx.fill()
+      ctx.restore()
+    }
+
+    // 指针
+    function drawCentroidGuidewire(angle) {
+
+      let radius = circle.radius + ringOuterRadius
+      let endpt
+      if(angle < Math.PI) {
+        endpt = {
+          x: circle.x + radius * Math.cos(angle),
+          y: circle.y + radius * Math.sin(angle)
+        }
+      }else {
+        endpt = {
+          x: circle.x - radius * Math.cos(angle),
+          y: circle.y - radius * Math.sin(angle)
+        }
+      }
+
+      ctx.save()
+      ctx.strokeStyle = guidewireStrokeStyle
+      ctx.fillStyle = guidewireFillStyle
+
+      ctx.beginPath()
+      ctx.moveTo(circle.x, circle.y)
+      ctx.lineTo(endpt.x, endpt.y)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.strokeStyle = tickLongStrokeStyle
+      ctx.arc(endpt.x, endpt.y, 5, 0, Math.PI * 2, false)
+      ctx.fill()
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    function drawRingOuterCircle() {
+      ctx.save()
+      ctx.shadowColor = 'rgba(0,0,0,0.7)'
+      ctx.shadowOffsetX = 3
+      ctx.shadowOffsetY = 3
+      ctx.shadowBlur = 6
+      ctx.strokeStyle = trackingDialStrokingStyle
+      ctx.beginPath()
+      ctx.arc(circle.x, circle.y, circle.radius + ringOuterRadius, 0, Math.PI * 2, true)
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    // 小圈
+    function drawTickInnerCircle() {
+      ctx.save()
+      ctx.beginPath()
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)'
+      ctx.arc(circle.x, circle.y, circle.radius + ringInnerRadius - tickWidth, 0, Math.PI * 2, false)
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    function drawTick(angle, radius, cnt) {
+      const _tickWidth = cnt % 4 === 0 ? tickWidth : tickWidth / 2
+      ctx.beginPath()
+      ctx.moveTo(
+        circle.x + Math.cos(angle) * (radius - _tickWidth),
+        circle.y + Math.sin(angle) * (radius - _tickWidth)
+      )
+      ctx.lineTo(
+        circle.x + Math.cos(angle) * radius,
+        circle.y + Math.sin(angle) * radius
+      )
+      ctx.strokeStyle = tickShortStrokeStyle
+      ctx.stroke()
+    }
+    function drawTicks() {
+      let radius = circle.radius + ringInnerRadius,
+        angleMax = 2 * Math.PI,
+        angleDelta = Math.PI / 64,
+        _tickWidth;
+
+      ctx.save()
+      for(
+        let angle = 0, cnt = 0;
+        angle < angleMax;
+        angle += angleDelta, cnt++
+      ) {
+        drawTick(angle, radius, cnt)
+      }
+
+    }
+
+    function drawAnnotations() {
+      let radius = circle.radius + ringInnerRadius
+
+      ctx.save()
+      ctx.fillStyle = annotationsFillStyle
+      ctx.font = annotationsTextSize + 'px Helvetica'
+
+      const step = Math.PI / 12
+      for(
+        let angle = 0;
+        angle < 2 * Math.PI - step;
+        angle += step
+      ) {
+        ctx.beginPath()
+        ctx.fillText(
+          (angle * 180 / Math.PI).toFixed(0),
+          circle.x + Math.cos(angle) * (radius - tickWidth * 2),
+          circle.y - Math.sin(angle) * (radius - tickWidth * 2)
+        )
+        ctx.restore()
+      }
+    }
+  </script>
+</body>
+</html>
