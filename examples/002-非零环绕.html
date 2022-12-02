@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #canvas {
+      outline: 1px solid tan;
+    }
+  </style>
+</head>
+<body>
+  <div class="tools">
+    <p>内圈arc当钱方向:<span class="d"></span></p>
+    <button onclick="direct = !direct; draw();">切换方向</button>
+  </div>
+  <canvas id="canvas" width="600" height="300" ></canvas>
+  <script type="module" >
+    import {drawGrid} from './common.js'
+    let direct = true
+    const canvas = document.getElementById('canvas')
+    /**
+     * @type {CanvasRenderingContext2D}
+     */
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = 'rgba(100, 140, 230, 0.5)'
+    ctx.strokeStyle = ctx.fillStyle
+    draw()
+
+    function draw() {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
+      drawGrid(ctx, 'lightgray', 10, 10)
+
+      ctx.save()
+      ctx.shadowColor = 'rgba(0,0,0,0.8)'
+      ctx.shadowOffsetX = 12
+      ctx.shadowOffsetY = 12
+      ctx.shadowBlur = 15
+      drawTwoArcs()
+      ctx.restore()
+    }
+
+    function drawTwoArcs() {
+      ctx.beginPath()
+      ctx.arc(300, 190, 100, 0, 2*Math.PI, false)
+      ctx.arc(300, 190, 50, 0, 2*Math.PI, direct)
+      ctx.fill()
+      ctx.shadowColor = undefined
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+      ctx.stroke()
+    }
+
+
+  </script>
+</body>
+</html>

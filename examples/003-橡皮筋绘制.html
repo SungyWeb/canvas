@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background: #eee;
+    }
+    #controls {
+      position: absolute;
+      left: 25px;
+      top: 25px;
+    }
+    #canvas {
+      display: block;
+      background-color: #fff;
+      cursor: pointer;
+      margin: 60px auto 0;
+      box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="600" height="400"></canvas>
+  <div id="controls">
+    <span>stroke color:</span>
+     <select name="" id="strokeColor">
+      <option value="red">red</option>
+      <option value="green">green</option>
+      <option value="blue">blue</option>
+      <option value="orange">orange</option>
+    </select>
+    <span>guidewires:</span>
+    <input type="checkbox" id="guidewireCheckbox" checked />
+    <input type="button" id="eraseAllButton" value="Erase all" />
+    <span>形状</span>
+    <input type="radio" name="shape" value="line" id="line" checked />
+    <label for="line">line</label>
+    <input type="radio" name="shape" value="arc" id="arc" />
+    <label for="arc">arc</label>
+    <span>填充：</span>
+    <input type="checkbox" id="fillCheckbox" />
+  </div>
+  <script type="module">
+    import {drawGrid, windowToCanvas} from './common.js'
+
+    /**
+     * @type {HTMLCanvasElement}
+     */
+    let canvas = document.getElementById('canvas'),
+      guidewiresCheckbox = document.getElementById('guidewireCheckbox'),
+      eraseAllButton = document.getElementById('eraseAllButton'),
+      strokeStyleSelect = document.getElementById('strokeColor'),
+      fillCheckbox = document.getElementById('fillCheckbox'),
+      drawingSurfaceImageData = null,
+      mousedown = {x: 0, y: 0},
+      dragging = false,
+      rubberbandRect = {
+        width: 0,
+        height: 0
+      },
+      guidewires = guidewiresCheckbox.checked,
+      isMouseup = false
+
+
+    /**
+     * @type {CanvasRenderingContext2D}
+     */
+    const ctx = canvas.getContext('2d', {willReadFrequently:true})
+
+
+    ctx.strokeStyle = strokeStyleSelect.value
+    ctx.fillStyle = strokeStyleSelect.value
+    drawGrid(ctx, 'lightgray', 10, 10)
+
+    canvas.onmousedown = function(e) {
+      let loc = windowToCanvas(e)
+      e.preventDefault()
+
+      saveDrawingSurface()
+      mousedown.x = loc.x
+      mousedown.y = loc.y
+      dragging = true
+    }
+
+    canvas.onmousemove  = function(e) {
+      let loc
+
+      if(dragging) {
+        e.preventDefault()
+
+        loc = windowToCanvas(e)
+        restoreDrawingSurface()
+        updateRubberband(loc)
+
+        if(guidewires) {
+          drawGuidewires(loc.x, loc.y)
+        }
+      }
+    }
+
+    canvas.onmouseup = function(e) {
+      let loc = windowToCanvas(e)
+      isMouseup = true
+      restoreDrawingSurface()
+      updateRubberband(loc)
+      dragging = false
+      isMouseup = false
+    }
+
+    eraseAllButton.onclick = function(e) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      drawGrid(ctx, 'lightgray', 10, 10)
+      saveDrawingSurface()
+    }
+
+    strokeStyleSelect.onchange = function(e) {
+      ctx.strokeStyle = strokeStyleSelect.value
+      ctx.fillStyle = strokeStyleSelect.value
+    }
+
+    guidewiresCheckbox.onchange = function(e) {
+      guidewires = guidewiresCheckbox.checked
+    }
+
+    function saveDrawingSurface() {
+      drawingSurfaceImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    }
+    function restoreDrawingSurface() {
+      ctx.putImageData(drawingSurfaceImageData, 0, 0)
+    }
+    function updateRubberband(loc) {
+      updateRubberbandRectangle(loc)
+      drawRubberbandShape(loc)
+    }
+    function updateRubberbandRectangle(loc) {
+      rubberbandRect.width = Math.abs(loc.x - mousedown.x)
+      rubberbandRect.height = Math.abs(loc.y - mousedown.y)
+
+      if(loc.x > mousedown.x) {
+        rubberbandRect.left = mousedown.x
+      }else {
+        rubberbandRect.left = loc.x
+      }
+
+      if(loc.y > mousedown.y) {
+        rubberbandRect.top = mousedown.y
+      }else {
+        rubberbandRect.top = loc.y
+      }
+    }
+    function drawRubberbandShape(loc) {
+      const shape = document.querySelector('input[type=radio]:checked').value
+      console.log(shape)
+      drawLine(loc)
+
+      if(shape === 'arc') {
+        drawArc(loc)
+      }
+    }
+
+    function drawLine(loc) {
+      ctx.beginPath()
+      ctx.moveTo(mousedown.x, mousedown.y)
+      ctx.lineTo(loc.x, loc.y)
+      ctx.stroke()
+    }
+
+    function drawArc(loc) {
+      let radius, angle
+      if(mousedown.y === loc.y) {
+        // 一条横线 半径为 loc.x - mousedown.x
+        radius = Math.abs(loc.x - mousedown.x)
+      }else if(mousedown.x === loc.x) {
+        // 一条竖线 半径为 loc.y - mousedown.y
+        radius = Math.abs(loc.y - mousedown.y)
+      }else {
+        // 不是直线
+        radius = Math.sqrt(Math.pow(rubberbandRect.width, 2) + Math.pow(rubberbandRect.height, 2))
+        angle = Math.atan(rubberbandRect.height / rubberbandRect.width)
+      }
+
+      ctx.beginPath()
+      ctx.arc(mousedown.x, mousedown.y, radius, 0, Math.PI * 2, false)
+      ctx.stroke()
+      if(isMouseup) {
+        ctx.fill()
+      }
+    }
+
+    function drawGuidewires(x, y) {
+      ctx.save()
+      ctx.strokeStyle = 'rgba(0,0,230,0.4)'
+      ctx.lineWidth = 0.5
+      drawVerticalLine(x)
+      drawHorizontalLine(y)
+      ctx.restore()
+    }
+    function drawVerticalLine(x) {
+      ctx.beginPath()
+      ctx.moveTo(x + 0.5, 0)
+      ctx.lineTo(x + 0.5, ctx.canvas.height)
+      ctx.stroke()
+    }
+    function drawHorizontalLine(y) {
+      ctx.beginPath()
+      ctx.moveTo(0, y + 0.5)
+      ctx.lineTo(ctx.canvas.width, y + 0.5)
+      ctx.stroke()
+    }
+  </script>
+</body>
+</html>
