@@ -26,27 +26,28 @@
 <body>
   <canvas id="canvas" width="600" height="400"></canvas>
   <div id="controls">
-    <span>stroke color:</span>
+    <span>color:</span>
      <select name="" id="strokeColor">
       <option value="red">red</option>
       <option value="green">green</option>
       <option value="blue">blue</option>
       <option value="orange">orange</option>
     </select>
-    <span>guidewires:</span>
+    <span>辅助线:</span>
     <input type="checkbox" id="guidewireCheckbox" checked />
-    <input type="button" id="eraseAllButton" value="Erase all" />
+    <input type="button" id="eraseAllButton" value="清除" />
     <span>形状</span>
-    <input type="radio" name="shape" value="line" id="line" checked />
-    <label for="line">line</label>
-    <input type="radio" name="shape" value="arc" id="arc" />
-    <label for="arc">arc</label>
+    <select name="" id="shapeSelect">
+      <option value="line">line</option>
+      <option value="arc">arc</option>
+      <option value="polygon">polygon</option>
+    </select>
     <span>填充：</span>
     <input type="checkbox" id="fillCheckbox" />
   </div>
   <script type="module">
     import {drawGrid, windowToCanvas} from './common.js'
-
+    import Polygon from './Polygon.js'
     /**
      * @type {HTMLCanvasElement}
      */
@@ -54,6 +55,7 @@
       guidewiresCheckbox = document.getElementById('guidewireCheckbox'),
       eraseAllButton = document.getElementById('eraseAllButton'),
       strokeStyleSelect = document.getElementById('strokeColor'),
+      shapeSelect = document.getElementById('shapeSelect'),
       fillCheckbox = document.getElementById('fillCheckbox'),
       drawingSurfaceImageData = null,
       mousedown = {x: 0, y: 0},
@@ -132,10 +134,14 @@
     function restoreDrawingSurface() {
       ctx.putImageData(drawingSurfaceImageData, 0, 0)
     }
+
+    // 更新橡皮筋
     function updateRubberband(loc) {
       updateRubberbandRectangle(loc)
       drawRubberbandShape(loc)
     }
+
+    // 更新坐标信息
     function updateRubberbandRectangle(loc) {
       rubberbandRect.width = Math.abs(loc.x - mousedown.x)
       rubberbandRect.height = Math.abs(loc.y - mousedown.y)
@@ -152,24 +158,24 @@
         rubberbandRect.top = loc.y
       }
     }
+
+    // 画图形
     function drawRubberbandShape(loc) {
-      const shape = document.querySelector('input[type=radio]:checked').value
-      console.log(shape)
-      drawLine(loc)
+      const shape = document.getElementById('shapeSelect').value
+      if(shape === 'line') {
+        drawLine(loc)
+      }
 
       if(shape === 'arc') {
         drawArc(loc)
       }
+
+      if(shape === 'polygon') {
+        drawPolygon(loc)
+      }
     }
 
-    function drawLine(loc) {
-      ctx.beginPath()
-      ctx.moveTo(mousedown.x, mousedown.y)
-      ctx.lineTo(loc.x, loc.y)
-      ctx.stroke()
-    }
-
-    function drawArc(loc) {
+    function getRadiusAndAngle(loc) {
       let radius, angle
       if(mousedown.y === loc.y) {
         // 一条横线 半径为 loc.x - mousedown.x
@@ -182,15 +188,42 @@
         radius = Math.sqrt(Math.pow(rubberbandRect.width, 2) + Math.pow(rubberbandRect.height, 2))
         angle = Math.atan(rubberbandRect.height / rubberbandRect.width)
       }
+      return [radius, angle]
+    }
 
+    function drawPolygon(loc) {
+      const [radius, angle] = getRadiusAndAngle(loc)
+      const sides = 3
+      const p = new Polygon(ctx, mousedown.x, mousedown.y, radius, sides, angle, ctx.strokeStyle, ctx.strokeStyle, fillCheckbox.checked)
+      if(fillCheckbox.checked) {
+        p.fill()
+      }else {
+        p.stroke()
+
+      }
+    }
+
+    // 直线
+    function drawLine(loc) {
+      ctx.beginPath()
+      ctx.moveTo(mousedown.x, mousedown.y)
+      ctx.lineTo(loc.x, loc.y)
+      ctx.stroke()
+    }
+
+    // 圆弧
+    function drawArc(loc) {
+
+      const [radius, angle] = getRadiusAndAngle(loc)
       ctx.beginPath()
       ctx.arc(mousedown.x, mousedown.y, radius, 0, Math.PI * 2, false)
       ctx.stroke()
-      if(isMouseup) {
+      if(fillCheckbox.checked) {
         ctx.fill()
       }
     }
 
+    // 辅助线
     function drawGuidewires(x, y) {
       ctx.save()
       ctx.strokeStyle = 'rgba(0,0,230,0.4)'
