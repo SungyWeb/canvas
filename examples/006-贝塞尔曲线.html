@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background: #eee;
+    }
+    #controls {
+      position: absolute;
+      left: 25px;
+      top: 25px;
+    }
+    #canvas {
+      display: block;
+      background-color: #fff;
+      cursor: pointer;
+      margin: 60px auto 0;
+      box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    }
+    </style>
+</head>
+<body>
+  <div style="display: flex; gap: 25px;">
+    <div>stroke color: <input type="color" id="strokeColor" /></div>
+    <div>fill color: <input type="color" id="fillColor" /></div>
+    <div>edit: <input type="checkbox" id="edit" /></div>
+    <div>filled: <input type="checkbox" id="filled" /></div>
+    <div>辅助线: <input type="checkbox" id="guide" /></div>
+    <div><input type="button" value="clear" id="clear" /></div>
+  </div>
+  <div id="instructions" class="floatingControls">
+    <p>drag the curve end- and control points to change the shape of the curve.</p>
+    <p>when you are done dragging end- and controls points, click outside of the points to finalize the curve.</p>
+    <input type="button" id="instructionsOkayButton" value="Okay" autofocus>
+    <input type="button" id="instructionsNoMoreButton" value="Do not show these instructions again" autofocus>
+  </div>
+  <canvas id="canvas" width="600" height="400"></canvas>
+
+  <script type="module">
+    import {drawGrid, windowToCanvas, getRadiusAndAngle, drawGuidewires} from './common.js'
+    import Polygon from './Polygon.js'
+
+
+
+    let canvas = document.getElementById('canvas'),
+      /**
+       * @type {CanvasRenderingContext2D}
+       */
+      c = canvas.getContext('2d', {willReadFrequently:true}),   // 告诉浏览器会频繁绘制
+      strokeColorEl = document.getElementById('strokeColor'),
+      fillColorEl = document.getElementById('fillColor'),
+      sidesEl = document.getElementById('sides'),
+      angleEl = document.getElementById('angle'),
+      filledEl = document.getElementById('filled'),
+      editEl = document.getElementById('edit'),
+      clearEl = document.getElementById('clear'),
+      guideEl = document.getElementById('guide'),
+      instructionsEl = document.getElementById('instructions'),
+      drawingImageData = null,
+      mousedown = {x: 0, y: 0},
+      rubberbandRect = {
+        width: 0,
+        height: 0,
+        left: 0,
+        top: 0
+      },
+
+      dragging = false,
+      draggingPoint = false,
+
+      showInstructions = false,
+
+      constrolPoints = [{}, {}],
+      endPoints = [{}, {}];
+
+
+    let strokeColor = strokeColorEl.value,
+      fillColor = fillColorEl.value,
+
+      editing = editEl.checked,
+      guide = guideEl.checked,
+      filled = filledEl.checked;
+
+    strokeColorEl.onchange = function(e) {
+      strokeColor = e.target.value
+    }
+    fillColorEl.onchange = function(e) {
+      fillColor = e.target.value
+    }
+    // sidesEl.onchange = function(e) {
+    //   sides = e.target.value
+    // }
+    filledEl.onchange = function(e) {
+      filled = e.target.checked
+    }
+    editEl.onchange = function(e) {
+      editing = e.target.checked
+    }
+    guideEl.onchange = function(e) {
+      guide = e.target.checked
+    }
+
+
+    c.strokeStyle = strokeColor
+    c.fillStyle = fillColor
+
+    c.shadowColor = 'rgba(0,0,0,0.4)'
+    c.shadowBlur = 4
+    c.shadowOffsetX = 2
+    c.shadowOffsetY = 2
+
+    drawGrid(c, 'lightgray', 10, 10)
+
+    function saveDrawingSurface() {
+      drawingImageData =c.getImageData(0, 0, canvas.width, canvas.height)
+    }
+    function restoreDrawingSurface() {
+      c.putImageData(drawingImageData, 0, 0)
+    }
+    function updateRubberbandRectangle (loc) {
+      rubberbandRect.width = Math.abs(loc.x = mousedown.x)
+      rubberbandRect.height = Math.abs(loc.y - mousedown.y)
+      if(loc.x > mousedown.x) {
+        rubberbandRect.left = mousedown.x
+      }else {
+        rubberbandRect.left = loc.x
+      }
+      if(loc.y > mousedown.y) {
+        rubberbandRect.top = mousedown.y
+      }else {
+        rubberbandRect.top = loc.y
+      }
+    }
+    function drawBezierCurve() {
+      c.beginPath()
+      c.moveTo(endPoints[0].x, endPoints[0].y)
+      c.bezierCurveTo(constrolPoints[0].x, constrolPoints[0].y, constrolPoints[1].x, constrolPoints[1].y, endPoints[1].x, endPoints[1].y)
+      c.strokeStyle = strokeColor
+      c.stroke()
+    }
+    function updateEnaAndControlPoints() {
+      endPoints[0].x = rubberbandRect.left
+      endPoints[0].y = rubberbandRect.top
+
+      endPoints[1].x = rubberbandRect.left + rubberbandRect.width
+      endPoints[1].y = rubberbandRect.top + rubberbandRect.height
+
+      constrolPoints[0].x = rubberbandRect.left
+      constrolPoints[0].y = rubberbandRect.top + rubberbandRect.height
+
+      constrolPoints[1].x = rubberbandRect.left + rubberbandRect.width
+      constrolPoints[1].y = rubberbandRect.top
+
+    }
+    function drawRubberbanShape(loc) {
+      updateEnaAndControlPoints()
+      drawBezierCurve(loc)
+    }
+    function updateRubberband(loc) {
+      updateRubberbandRectangle(loc)
+      drawRubberbanShape(loc)
+    }
+    function drawControlPoint(idx) {
+      c.beginPath()
+      c.arc(constrolPoints[idx].x, constrolPoints[idx].y, 5, 0, Math.PI * 2, false)
+      c.stroke()
+      c.fill()
+    }
+    function drawControlPoints () {
+      c.save()
+      c.strokeStyle = 'blue'
+      c.fillStyle = 'rgba(255,255,0, 0.5)'
+      drawControlPoint(0)
+      drawControlPoint(1)
+      c.stroke()
+      c.fill()
+      c.restore()
+    }
+    function drawEndPoint(idx) {
+      c.beginPath()
+      c.arc(endPoints[idx].x, endPoints[idx].y, 5, 0, Math.PI * 2, false)
+      c.stroke()
+      c.fill()
+    }
+    function drawEndPoints() {
+      c.save()
+      c.strokeStyle = 'navy'
+      c.fillStyle = 'rgba(0, 255, 0,0.5)'
+      drawEndPoint(0)
+      drawEndPoint(1)
+      c.stroke()
+      c.fill()
+      c.restore()
+    }
+
+    function drawControlAndEndPoints() {
+      drawControlPoints()
+      drawEndPoints()
+    }
+    function cursorInEndPoint(loc) {
+      let pt
+
+      endPoints.forEach(p => {
+        c.beginPath()
+        c.arc(p.x, p.y, 5, 0, Math.PI * 2, false)
+        if(c.isPointInPath(loc.x, loc.y)) {
+          pt = p
+        }
+      })
+      return pt
+    }
+    function cursorInControlPoint(loc) {
+      let pt
+
+      constrolPoints.forEach(p => {
+        c.beginPath()
+        c.arc(p.x, p.y, 5, 0, Math.PI * 2, false)
+        if(c.isPointInPath(loc.x, loc.y)) {
+          pt = p
+        }
+      })
+      return pt
+    }
+
+    function updateDraggingPoint(loc) {
+      draggingPoint.x = loc.x
+      draggingPoint.y = loc.y
+    }
+
+
+    canvas.onmousedown = function(e) {
+      const loc = windowToCanvas(e)
+      e.preventDefault()
+      if(!editing) {
+        saveDrawingSurface()
+        mousedown.x = loc.x
+        mousedown.y = loc.y
+        updateRubberbandRectangle(loc)
+        dragging = true
+      }else {
+        draggingPoint = cursorInControlPoint(loc)
+        if(!draggingPoint) {
+          draggingPoint = cursorInEndPoint(loc)
+        }
+      }
+    }
+    canvas.onmousemove = function(e) {
+      const loc = windowToCanvas(e)
+
+      if(dragging || draggingPoint) {
+        e.preventDefault()
+        restoreDrawingSurface()
+
+        if(guide) {
+          drawGuidewires(c, loc.x, loc.y)
+        }
+      }
+
+      if(dragging) {
+        updateRubberbandRectangle(loc)
+        drawControlAndEndPoints()
+      }else if(draggingPoint) {
+        updateDraggingPoint(loc)
+        drawControlAndEndPoints()
+        drawBezierCurve()
+      }
+    }
+    canvas.onmouseup = function(e) {
+      const loc = windowToCanvas(e)
+      restoreDrawingSurface()
+
+      if(!editing) {
+        updateRubberband(loc)
+        drawControlAndEndPoints()
+        dragging = false
+        editing = false
+        if(showInstructions) {
+          instructionsEl.style.display = 'inline'
+        }
+      }else {
+        if(draggingPoint) {
+          drawControlAndEndPoints()
+        }else {
+          editing = false
+        }
+
+        drawBezierCurve()
+        draggingPoint = undefined
+
+      }
+
+
+    }
+  </script>
+</body>
+</html>

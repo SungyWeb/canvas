@@ -26,13 +26,10 @@
 <body>
   <canvas id="canvas" width="600" height="400"></canvas>
   <div id="controls">
-    <span>color:</span>
-     <select name="" id="strokeColor">
-      <option value="red">red</option>
-      <option value="green">green</option>
-      <option value="blue">blue</option>
-      <option value="orange">orange</option>
-    </select>
+    <span>strokeColor:</span>
+    <input type="color" id="strokeColor">
+    <span>fillColor:</span>
+    <input type="color" id="fillColor">
     <span>辅助线:</span>
     <input type="checkbox" id="guidewireCheckbox" checked />
     <input type="button" id="eraseAllButton" value="清除" />
@@ -46,7 +43,7 @@
     <input type="checkbox" id="fillCheckbox" />
   </div>
   <script type="module">
-    import {drawGrid, windowToCanvas} from './common.js'
+    import {drawGrid, windowToCanvas, getRadiusAndAngle} from './common.js'
     import Polygon from './Polygon.js'
     /**
      * @type {HTMLCanvasElement}
@@ -54,7 +51,8 @@
     let canvas = document.getElementById('canvas'),
       guidewiresCheckbox = document.getElementById('guidewireCheckbox'),
       eraseAllButton = document.getElementById('eraseAllButton'),
-      strokeStyleSelect = document.getElementById('strokeColor'),
+      strokeColorPicker = document.getElementById('strokeColor'),
+      fillColorPicker = document.getElementById('fillColor'),
       shapeSelect = document.getElementById('shapeSelect'),
       fillCheckbox = document.getElementById('fillCheckbox'),
       drawingSurfaceImageData = null,
@@ -74,8 +72,8 @@
     const ctx = canvas.getContext('2d', {willReadFrequently:true})
 
 
-    ctx.strokeStyle = strokeStyleSelect.value
-    ctx.fillStyle = strokeStyleSelect.value
+    ctx.strokeStyle = strokeColorPicker.value
+    ctx.fillStyle = strokeColorPicker.value
     drawGrid(ctx, 'lightgray', 10, 10)
 
     canvas.onmousedown = function(e) {
@@ -119,9 +117,9 @@
       saveDrawingSurface()
     }
 
-    strokeStyleSelect.onchange = function(e) {
-      ctx.strokeStyle = strokeStyleSelect.value
-      ctx.fillStyle = strokeStyleSelect.value
+    strokeColorPicker.onchange = function(e) {
+      ctx.strokeStyle = strokeColorPicker.value
+      ctx.fillStyle = strokeColorPicker.value
     }
 
     guidewiresCheckbox.onchange = function(e) {
@@ -175,26 +173,11 @@
       }
     }
 
-    function getRadiusAndAngle(loc) {
-      let radius, angle
-      if(mousedown.y === loc.y) {
-        // 一条横线 半径为 loc.x - mousedown.x
-        radius = Math.abs(loc.x - mousedown.x)
-      }else if(mousedown.x === loc.x) {
-        // 一条竖线 半径为 loc.y - mousedown.y
-        radius = Math.abs(loc.y - mousedown.y)
-      }else {
-        // 不是直线
-        radius = Math.sqrt(Math.pow(rubberbandRect.width, 2) + Math.pow(rubberbandRect.height, 2))
-        angle = Math.atan(rubberbandRect.height / rubberbandRect.width)
-      }
-      return [radius, angle]
-    }
-
     function drawPolygon(loc) {
-      const [radius, angle] = getRadiusAndAngle(loc)
+      const [radius, angle] = getRadiusAndAngle(mousedown, loc)
       const sides = 3
       const p = new Polygon(ctx, mousedown.x, mousedown.y, radius, sides, angle, ctx.strokeStyle, ctx.strokeStyle, fillCheckbox.checked)
+      p.createPath()
       if(fillCheckbox.checked) {
         p.fill()
       }else {

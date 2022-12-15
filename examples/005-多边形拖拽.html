@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background: #eee;
+    }
+    #controls {
+      position: absolute;
+      left: 25px;
+      top: 25px;
+    }
+    #canvas {
+      display: block;
+      background-color: #fff;
+      cursor: pointer;
+      margin: 60px auto 0;
+      box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    }
+    </style>
+</head>
+<body>
+  <div style="display: flex; gap: 25px;">
+    <div>stroke color: <input type="color" id="strokeColor" /></div>
+    <div>fill color: <input type="color" id="fillColor" /></div>
+    <div>sides: <input type="number" min="3" id="sides" value="3" max="100" /></div>
+    <div>filled: <input type="checkbox" id="filled" /></div>
+    <div>edit: <input type="checkbox" id="edit" /></div>
+    <div>辅助线: <input type="checkbox" id="guide" /></div>
+    <div><input type="button" value="clear" id="clear" /></div>
+  </div>
+  <canvas id="canvas" width="600" height="400"></canvas>
+
+  <script type="module">
+    import {drawGrid, windowToCanvas, getRadiusAndAngle, drawGuidewires} from './common.js'
+    import Polygon from './Polygon.js'
+
+
+
+    let canvas = document.getElementById('canvas'),
+      /**
+       * @type {CanvasRenderingContext2D}
+       */
+      c = canvas.getContext('2d', {willReadFrequently:true}),   // 告诉浏览器会频繁绘制
+      strokeColorEl = document.getElementById('strokeColor'),
+      fillColorEl = document.getElementById('fillColor'),
+      sidesEl = document.getElementById('sides'),
+      angleEl = document.getElementById('angle'),
+      filledEl = document.getElementById('filled'),
+      editEl = document.getElementById('edit'),
+      clearEl = document.getElementById('clear'),
+      guideEl = document.getElementById('guide'),
+
+      drawingImageData = null,
+      mousedown = {x: 0, y: 0},
+
+
+      operating = false,
+
+      draggingOffsetX = 0,
+      draggingOffsetY = 0,
+
+
+      draggingPolygon,
+      polygons = [];
+
+    let strokeColor = strokeColorEl.value,
+      fillColor = fillColorEl.value,
+      sides = sidesEl.value,
+      editing = editEl.checked,
+      guide = guideEl.checked,
+      filled = filledEl.checked;
+
+    strokeColorEl.onchange = function(e) {
+      strokeColor = e.target.value
+    }
+    fillColorEl.onchange = function(e) {
+      fillColor = e.target.value
+    }
+    sidesEl.onchange = function(e) {
+      sides = e.target.value
+    }
+    filledEl.onchange = function(e) {
+      filled = e.target.checked
+    }
+    editEl.onchange = function(e) {
+      editing = e.target.checked
+    }
+    guideEl.onchange = function(e) {
+      guide = e.target.checked
+    }
+
+
+    c.strokeStyle = strokeColor
+    c.fillStyle = fillColor
+
+    c.shadowColor = 'rgba(0,0,0,0.4)'
+    c.shadowBlur = 4
+    c.shadowOffsetX = 2
+    c.shadowOffsetY = 2
+
+    drawGrid(c, 'lightgray', 10, 10)
+
+    function createPolygon(loc) {
+
+      const [radius, angle] = getRadiusAndAngle(mousedown, loc)
+
+      const p = new Polygon(
+        c,
+        mousedown.x,
+        mousedown.y,
+        radius,
+        sides,
+        angle,
+        strokeColor,
+        fillColor,
+        filled
+      )
+
+      drawPolygon(p)
+
+      return p
+    }
+
+    function drawPolygon(polygon) {
+      c.save()
+      c.beginPath()
+      polygon.createPath()
+      polygon.stroke()
+      if(polygon.filled) {
+        polygon.fill()
+      }
+      c.restore()
+    }
+    function drawPolygons() {
+      polygons.forEach(p => drawPolygon(p))
+    }
+
+    function saveImageData() {
+      drawingImageData =c.getImageData(0, 0, canvas.width, canvas.height)
+    }
+    function restoreImageData() {
+      c.putImageData(drawingImageData, 0, 0)
+    }
+    function startDragging(loc) {
+      saveImageData()
+      mousedown.x = loc.x
+      mousedown.y = loc.y
+    }
+
+
+
+    canvas.onmousedown = function(e) {
+      const loc = windowToCanvas(e)
+      e.preventDefault()
+      if(editing) {
+        for(let i = 0; i < polygons.length; i++) {
+          const p = polygons[i]
+          p.createPath()
+          if(c.isPointInPath(loc.x, loc.y)) {
+            startDragging(loc)
+            // 点击点距离中心的偏移量
+            draggingPolygon = p;
+            draggingOffsetX = loc.x - p.x
+            draggingOffsetY = loc.y - p.y
+            break;
+          }
+        }
+      }else {
+        startDragging(loc)
+      }
+      operating = true
+    }
+    canvas.onmousemove = function(e) {
+      e.preventDefault()
+
+      if(!operating) return
+      const loc = windowToCanvas(e)
+      if(editing) {
+        let x = loc.x - draggingOffsetX, y = loc.y - draggingOffsetY
+        draggingPolygon.move(x, y)
+        c.clearRect(0, 0, canvas.width, canvas.height)
+        drawGrid(c, 'lightgray', 10, 10)
+        drawPolygons()
+      }else {
+        restoreImageData()
+        createPolygon(loc)
+        if(guide) {
+          drawGuidewires(c, loc.x, loc.y)
+        }
+      }
+    }
+    canvas.onmouseup = function(e) {
+      e.preventDefault()
+      if(!operating) return
+
+      if(!editing) {
+        restoreImageData()
+        const loc = windowToCanvas(e)
+        const p = createPolygon(loc)
+        polygons.push(p)
+      }
+
+      operating = false
+    }
+  </script>
+</body>
+</html>
