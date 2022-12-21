@@ -30,3 +30,81 @@ arc(x, y, r, start, end, 是否逆时针)
 rect() 方法默认是顺时针，且不可修改
 
 > 非零环绕 对于路径中任意给定的区域，从该区域内部画出一条足长的直线，然后初始化一个为0的计数器，沿着直线，如果是与路径的顺时针部分相交，则加1，如果与路径的逆时针部分相交，则减1；最终如果计数器**不是0浏览器会对该区域填充**，如果不是0，则不会填充。[002-非零环绕-圆环剪纸](./examples/002-%E9%9D%9E%E9%9B%B6%E7%8E%AF%E7%BB%95.html)
+
+11. 坐标转换
+
+这里需要注意的是 转换的是整个画布 而不是某个路径
+
++ rotate(angle) 按给定弧度旋转，顺时针从0度（x轴正方向，以左上角为中心）进行旋转 公式：
+
+$$
+  x' = x \times \cos(angle) - y \times \sin(angle)
+$$
+$$
+  y' = y \times \cos(angle) + x \times \sin(angle)
+$$
+
++ scale(x, y) 在x y方向上分别按给顶的数值倍数进行缩放 公式：
+
+$$
+  x' = x \times sx
+$$
+$$
+  y' = y \times sy
+$$
+
++ translate(x, y) 将坐标系中心点平移到(x, y)坐标位置
+
+$$
+  x' = x + dx
+$$
+$$
+  y' = y + dy
+$$
+
+
+
+> scale(-1, 1) 可以将画布水平镜像； scale(1, -1) 可以垂直镜像
+
+`transform(a, b, c, d, e, f)`和`setTransform(a, b, c, d, e, f)`都接受6参数，其<font color=red>***计算公式***</font>为：
+
+$$
+  x' = ax + cy + e
+$$
+$$
+  y' = bx + dy + f
+$$
+
+运用上述公式
+
+平移至 (5, 10) `transform(0, 0, 0, 0, 5, 10)`
+
+$$
+  x' = a \times x + c \times y + e = 0 + 0 + 5
+$$
+
+$$
+  y' = b \times x + d \times y + f = 0 + 0 + 10
+$$
+
+缩放 x轴2倍 y轴3倍  `transform(2, 0, 0, 3, 0, 0)`
+
+$$
+  x' = a \times x + c \times y + e = 2 \times x + 0 + 0
+$$
+
+$$
+  y' = b \times x + d \times y + f = 0 + 3 \times y + 0
+$$
+
+旋转45角度(`Math.PI/4`弧度) `transform(cons(angle), sin(angle), -sin(angle), cos(angle), 0, 0)`
+
+$$
+  x' = a \times x + c \times y + e = cos(angle) \times x -sin(angle) \times y + 0
+$$
+
+$$
+  y' = b \times x + d \times y + f = sin(angle) \times x + cos(angle) \times y + 0
+$$
+
+> `transform`是累加的每次调用都是对当前坐标系的转换；`setTransform`是先将当前的变换重置，再执行变换
