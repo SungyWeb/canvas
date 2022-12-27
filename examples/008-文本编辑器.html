@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background: #eee;
+    }
+    #controls {
+      position: absolute;
+      left: 25px;
+      top: 25px;
+    }
+    #canvas {
+      display: block;
+      background-color: #fff;
+      cursor: pointer;
+      margin: 60px auto 0;
+      box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    }
+    </style>
+</head>
+<body>
+  <div style="display: flex; gap: 25px;">
+    <div>stroke color: <input type="color" id="strokeColor" /></div>
+    <div>fill color: <input type="color" id="fillColor" /></div>
+    <div>edit: <input type="checkbox" id="edit" /></div>
+    <div>filled: <input type="checkbox" id="filled" /></div>
+    <div>辅助线: <input type="checkbox" id="guide" /></div>
+    <div><input type="button" value="clear" id="clear" /></div>
+  </div>
+  <div id="instructions" class="floatingControls">
+    <p>drag the curve end- and control points to change the shape of the curve.</p>
+    <p>when you are done dragging end- and controls points, click outside of the points to finalize the curve.</p>
+    <input type="button" id="instructionsOkayButton" value="Okay" autofocus>
+    <input type="button" id="instructionsNoMoreButton" value="Do not show these instructions again" autofocus>
+  </div>
+  <canvas id="canvas" width="600" height="400"></canvas>
+
+  <script type="module">
+    import {drawGrid, windowToCanvas, getRadiusAndAngle, drawGuidewires} from './common.js'
+    import TextEditor from './TextEditor.js'
+
+
+
+    let canvas = document.getElementById('canvas'),
+      /**
+       * @type {CanvasRenderingContext2D}
+       */
+      c = canvas.getContext('2d', {willReadFrequently:true}),
+      drawingSurfaceImageData;   // 告诉浏览器会频繁绘制
+
+    const editor = new TextEditor(c)
+
+  </script>
+</body>
+</html>

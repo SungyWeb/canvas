@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background: #eee;
+    }
+    #controls {
+      position: absolute;
+      left: 25px;
+      top: 25px;
+    }
+    #canvas {
+      display: block;
+      background-color: #fff;
+      cursor: pointer;
+      margin: 60px auto 0;
+      box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    }
+    </style>
+</head>
+<body>
+
+  <canvas id="canvas" width="600" height="400"></canvas>
+
+  <script type="module">
+
+    let canvas = document.getElementById('canvas'),
+      /**
+       * @type {CanvasRenderingContext2D}
+       */
+      c = canvas.getContext('2d', {willReadFrequently:true});   // 告诉浏览器会频繁绘制
+
+    const TextFillStyle = 'rgba(100, 130, 240, 0.5)',
+      TextStrokeStyle = 'rgba(200, 0, 0, 0.7)',
+      TextSize = 64,
+      circle = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 120
+      };
+
+    function drawCircularText(string, startAngle, endAngle) {
+      let radius = circle.radius,
+        angleDecrement = (startAngle - endAngle) / (string.length - 1),
+        angle = parseFloat(startAngle),
+        index = 0,
+        character;
+
+      c.save()
+      c.fillStyle = TextFillStyle
+      c.strokeStyle = TextStrokeStyle
+      c.font = TextSize + 'px Lucida Sans'
+
+      while(index < string.length) {
+        character = string.charAt(index)
+
+        c.save()
+        c.beginPath()
+
+        c.translate(circle.x + Math.cos(angle) * radius, circle.y - Math.sin(angle) * radius)
+        c.rotate(Math.PI / 2 - angle)
+
+        c.fillText(character, 0, 0)
+        c.strokeText(character, 0, 0)
+
+        angle -= angleDecrement
+        index++
+
+        c.restore()
+      }
+
+      c.restore()
+    }
+
+    c.textAlign = 'center'
+    c.textBaseline = 'middle'
+
+    drawCircularText('Hello Canvas!', Math.PI, 0)
+  </script>
+</body>
+</html>
